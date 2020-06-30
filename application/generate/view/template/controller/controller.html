@@ -1,0 +1,232 @@
+
+//自动生成,请根据需要修改
+namespace {$app_namespace}\{$module_name}\controller;
+use app\common\controller\Base;
+use think\facade\Request;
+use think\Db;
+/**
+* @title {$table_title}接口
+* @description {$table_title}说明
+* @group {$group_name}
+
+*/
+class {:parse_name($table_name,true)} extends Base{
+
+{foreach $function_list as $f_list_k=>$f_list_v}
+	/**
+	* @title {$f_list_v.function_title}
+
+	* @description {$f_list_v.function_desc}
+
+	* @author 开发者（{$f_list_v.person_name}）
+	* @url /{:parse_name($db_name)}/{:parse_name($table_name)}/{:parse_name($f_list_v.function_name)}
+
+	* @method {$f_list_v.method_type=='*'?'*':$f_list_v.method_type}
+
+	* @param name:token require:1 default: desc:token
+{foreach $f_list_v.input_data as $i_k=>$i_v}
+	* @param name:{$i_v.name} type:{$i_v.type} require:1 default:0 other:{$i_v.comment} desc:
+{/foreach}
+	*
+{foreach $f_list_v.return_data as $r_k=>$r_v}
+	* @return {$r_v.name}:{$r_v.comment}
+
+{/foreach}
+	*
+	*/
+	public function {:parse_name($f_list_v.function_name)} (){
+{foreach $f_list_v.function_data as $f_data_k=>$f_data_v }
+
+{if $f_data_v.type=='input'}
+		//模块 - 输入数据
+{foreach $f_data_v.data as $k=>$v}
+		${$f_data_v.return_name}['{$v.field_name}'] = Request::{if $f_list_v.method_type =='*'}param{/if}
+{if $f_list_v.method_type =='post'}post{/if}
+{if $f_list_v.method_type =='get'}get{/if}
+{if $f_list_v.method_type =='put'}put{/if}
+{if $f_list_v.method_type =='delete'}delete{/if}('{$v.field_name}{if $v.field_type=="Int"}/s{/if}');
+{/foreach}
+
+		// input结果返回
+{foreach $f_data_v.data as $k=>$v}
+{if $v.is_back==true}
+		$msg['data']['{$v.field_name}'] = ${$f_data_v.return_name}['{$v.field_name}'];
+{/if}
+{/foreach}
+{/if}
+
+{if $f_data_v.type=='validate'}
+		//模块 - 验证器
+		${:parse_name($table_name)}Validate = new \app\{$db_name}\validate\{:parse_name($table_name,true)};
+		${$f_data_v.return_name} = ${:parse_name($table_name)}Validate->scene('{$f_data_v.validate.name}')->check(${$f_data_v.input_name});
+		if (!${$f_data_v.return_name}) {
+			$msg['msg'] = '验证失败';
+			$msg['validate'] = ${:parse_name($table_name)}Validate->getError();
+			return $this->errorJson($msg);
+		}
+{/if}
+
+{if $f_data_v.type=='select'}
+		// ---	模块 - 查询  ---
+{if empty($f_data_v.join)}
+{if  count($f_data_v.data)!==0}
+		//查询字段
+		${:parse_name($f_data_v.select_type)}_fields = [{foreach $f_data_v.data as $w_k=>$w_v}{if $w_k!==0},{/if}'{:parse_name($w_v.field_name)}'{/foreach}];
+{/if}
+{if  count($f_data_v.where)!==0}
+		//查询条件
+		${:parse_name($f_data_v.select_type)}_map = [
+{foreach $f_data_v.where as $w_k=>$w_v}
+			'{:parse_name($w_v.field_name)}' => {if empty($w_v.con_var_name)}{$w_v.con_field_name}{else /}${$w_v.con_var_name}['{$w_v.con_field_name}']{/if},
+{/foreach}
+		];
+{/if}
+		//获取数据
+		${$f_data_v.return_name} = Db::name('{:str_replace($table_prefix,'',$f_data_v.table_name)}'){if  count($f_data_v.where)!==0}->where(${:parse_name($f_data_v.select_type)}_map){/if}{if count($f_data_v.data)!==0}->field(${:parse_name($f_data_v.select_type)}_fields){/if}->{:parse_name($f_data_v.select_type)}();
+
+		// {:parse_name($f_data_v.select_type)} 返回数据
+{if $f_data_v.select_type=='find'}
+{if  count($f_data_v.data)!==0}
+{foreach $f_data_v.data as $w_k=>$w_v}
+		$msg['data']['{:parse_name($w_v.field_name)}'] = ${$f_data_v.return_name}['{:parse_name($w_v.field_name)}'];
+{/foreach}
+{/if}
+{if  count($f_data_v.data)===0}
+		$msg['data'] = ${$f_data_v.return_name};
+{/if}
+{else /}
+		$msg['list'] = ${$f_data_v.return_name};
+{/if}
+{else /}
+
+		//查询字段(join)
+		${:parse_name($f_data_v.select_type)}_fields = [{foreach $f_data_v.data as $w_k=>$w_v}{if $w_k!==0},{/if}'{$f_data_v.alias}.{:parse_name($w_v.field_name)} as {$f_data_v.alias}_{:parse_name($w_v.field_name)}'{/foreach}{foreach $f_data_v.join as $j_k=>$j_v}{foreach $j_v.data as $w_k=>$w_v},'{$j_v.alias}.{:parse_name($w_v.field_name)}'{/foreach}{/foreach}];
+		//查询条件(join)
+		${:parse_name($f_data_v.select_type)}_map = [
+{foreach $f_data_v.join as $j_k=>$j_v}
+{foreach $f_data_v.where as $w_k=>$w_v}
+{if $w_v.table_name==$f_data_v.table_name}
+			'{$f_data_v.alias}.{:parse_name($w_v.field_name)}' => {if empty($w_v.con_var_name)}{$w_v.con_field_name}{else /}${$w_v.con_var_name}['{$w_v.con_field_name}']{/if},
+{/if}
+{if $w_v.table_name==$j_v.table_name}
+			'{$j_v.alias}.{:parse_name($w_v.field_name)}' => {if empty($w_v.con_var_name)}{$w_v.con_field_name}{else /}${$w_v.con_var_name}['{$w_v.con_field_name}']{/if},
+{/if}
+{/foreach}
+{/foreach}
+		];
+
+		//获取数据(join)
+		${$f_data_v.return_name} = Db::name('{:str_replace($table_prefix,'',$f_data_v.table_name)}')
+			->alias('{$f_data_v.alias}')
+			->where(${:parse_name($f_data_v.select_type)}_map)
+{foreach $f_data_v.join as $j_k=>$j_v}
+{if $temp = false}{/if}
+			->join(['{$j_v.table_name}'=>'{$j_v.alias}'],'{foreach $f_data_v.condition as $con_k=>$con_v}
+{if $con_v.alias==$j_v.alias}
+{if $temp} and {/if}
+{if $temp = true}{/if}
+{$con_v.alias}.{$con_v.field} {$con_v.condition} {if $con_v.left_var===$f_data_v.return_name}{$f_data_v.alias.".".$con_v.left_field}{else /}{$con_v.left_var==''?"'.".$con_v.left_field.".'":"'.$".$con_v.left_var."['".$con_v.left_field."'].'"}{/if}
+{/if}
+{/foreach}','{$j_v.type}')
+{/foreach}
+			->field(${:parse_name($f_data_v.select_type)}_fields)
+			->{:parse_name($f_data_v.select_type)}();
+
+		// {:parse_name($f_data_v.select_type)} 返回数据
+{if $f_data_v.select_type=='find'}
+{foreach $f_data_v.data as $w_k=>$w_v}
+		$msg['data'] = ${$f_data_v.return_name}['{:parse_name($f_data_v.alias)}.{:parse_name($w_v.field_name)}'];
+{/foreach}
+{foreach $f_data_v.join as $j_k=>$j_v}
+{foreach $j_v.data as $w_k=>$w_v}
+		$msg['data'] = ${$f_data_v.return_name}['{:parse_name($j_v.alias)}.{:parse_name($w_v.field_name)}'];
+{/foreach}
+{/foreach}
+
+{else /}
+		$msg['list'] = ${$f_data_v.return_name};
+{/if}
+
+{/if}
+{/if}
+
+{if $f_data_v.type=='insert'}
+		// ---	模块 - 新增  ---
+		//插入的数据
+		$insert_data = [
+{foreach $f_data_v.data as $d_k=>$d_v}
+			'{$d_v.field_name}'=>{$d_v.root_var_name==''?'':"$".$d_v.root_var_name."['".$d_v.root_field_name."']"},
+{/foreach}
+		];
+		//添加数据
+		${$f_data_v.return_name} = Db::name('{:str_replace($table_prefix,'',$f_data_v.table_name)}')->data($insert_data)->insert();
+		if(!${$f_data_v.return_name}){
+			$msg['msg'] = '插入数据失败！';
+			return $this->errorJson($msg);
+		}
+		$msg['res'] = ${$f_data_v.return_name};
+{/if}
+
+{if $f_data_v.type=='update'}
+		// ---	模块 - 修改  ---
+		//更新的条件
+		$update_date = [
+{foreach $f_data_v.where as $d_k=>$d_v}
+		'{$d_v.field_name}'=>{$d_v.con_var_name==''?'':"$".$d_v.con_var_name."['".$d_v.con_field_name."']"},
+{/foreach}
+		];
+		//更新的数据
+		$update_map = [
+{foreach $f_data_v.data as $d_k=>$d_v}
+			'{$d_v.field_name}'=>{$d_v.root_var_name==''?'':"$".$d_v.root_var_name."['".$d_v.root_field_name."']"},
+{/foreach}
+		];
+		//获取数据
+		${$f_data_v.return_name} = Db::name('{:str_replace($table_prefix,'',$f_data_v.table_name)}')->where($update_date)->update($update_map);
+		if(!${$f_data_v.return_name}){
+			$msg['msg'] = '更新据失败！';
+			return $this->errorJson($msg);
+		}
+		$msg['res'] = ${$f_data_v.return_name};
+{/if}
+
+{if $f_data_v.type=='delete'}
+		// ---  模块 - 删除  ---
+		//删除的条件
+		$delete_map = [
+{foreach $f_data_v.where as $d_k=>$d_v}
+			'{$d_v.field_name}'=>{$d_v.con_var_name==''?'':"$".$d_v.con_var_name."['".$d_v.con_field_name."']"},
+{/foreach}
+		];
+		//删除数据
+		${$f_data_v.return_name} = Db::name('{:str_replace($table_prefix,'',$f_data_v.table_name)}')->where($delete_map)->delete();
+		if(!${$f_data_v.return_name}){
+			$msg['msg'] = '删除数据失败！';
+			return $this->errorJson($msg);
+		}
+		$msg['res'] = ${$f_data_v.return_name};
+{/if}
+
+{if $f_data_v.type=='error_msg'}
+		//模块 - 错误提示
+{foreach $f_data_v.hint as $h_k=>$h_v}
+
+{if $h_k==0}
+		if{else /}else if{/if}({foreach $h_v.where as $k=>$v}
+{if $k!==0} && {/if}{$v.var_name==''?$v.field_name:"$".$v.var_name."['".$v.field_name."']"} {$v.condition} {$v.con_var_name==''?$v.con_field_name:"$".$v.con_var_name."['".$v.con_field_name."']"}
+{/foreach}){
+			$msg['msg'] = '{$h_v.message}';
+			return $this->errorJson($msg);
+		}{/foreach}
+
+{/if}
+
+{/foreach}
+
+		//接口输出json数据
+		$msg['msg'] = '操作成功！';
+		return $this->successJson($msg);
+	}
+{/foreach}
+
+}

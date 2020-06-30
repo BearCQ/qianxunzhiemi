@@ -1,0 +1,496 @@
+{extend name="view/base" /}
+
+{block name="head"}
+<style type="text/css">
+    th, td {
+        text-align: center !important;
+    }
+</style>
+{/block}
+{block name="main"}
+
+<h1 class="bd-title" id="content">基础数据</h1>
+<hr>
+<div class="mb-3">
+    <!-- Button trigger modal -->
+    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#group">添加分组</button>
+    <button type="button" class="btn btn-primary ml-2" data-toggle="modal" data-target="#person">添加负责人</button>
+    <button type="button" class="btn btn-db ml-2" data-toggle="modal" data-target="#model" onclick="model.load_base()">添加模块</button>
+    <a href="{:url('/generate/Index/table')}" class="btn btn-db ml-2">添加数据表</a>
+    <!-- Modal -->
+    <div class="modal fade" id="group" tabindex="-1" role="dialog" aria-labelledby="groupLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="groupLabel">添加分组</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <form class="form-inline" id="group_form" action="">
+                            <div class="form-group">
+                                <input type="text" class="form-control" name="name" id="group_name" placeholder="分组名称" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary ml-2" onclick="group.add(event)">添加</button>
+                        </form>
+                    </div>
+                    <table class="table table-bordered" id="group_table">
+                        <thead class="thead-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">名称</th>
+                            <th scope="col">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="data in table">
+                            <td>{{data.id}}</td>
+                            <td>{{data.name}}</td>
+                            <td><a :href="'javascript:group.del('+data.id+')'">删除</a></td>
+                        </tr>
+                        <tr v-if="table.length === 0">
+                            <td colspan="3">暂无分组数据</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="person" tabindex="-1" role="dialog" aria-labelledby="personLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="personLabel">添加负责人</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <form class="form-inline" id="person_form" action="">
+                            <div class="form-group">
+                                <input type="text" class="form-control" name="name" placeholder="负责人" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary ml-2" onclick="person.add(event)">添加</button>
+                        </form>
+                    </div>
+                    <table class="table table-bordered" id="person_table">
+                        <thead class="thead-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">负责人</th>
+                            <th scope="col">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="data in table">
+                            <td>{{data.id}}</td>
+                            <td>{{data.name}}</td>
+                            <td><a :href="'javascript:person.del('+data.id+')'">删除</a></td>
+                        </tr>
+                        <tr v-if="table.length === 0">
+                            <td colspan="3">暂无负责人数据</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="model" tabindex="-1" role="dialog" aria-labelledby="modelLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-db text-light">
+                    <h5 class="modal-title" id="modelLabel">添加模型</h5>
+                    <button type="button" class="close text-light" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="model_table">
+                    <div class="mb-3">
+                        <form class="" id="model_form" action="">
+                            <div class="row">
+                                <div class="form-group col-6">
+                                    <label>模块名称</label>
+                                    <input type="text" class="form-control" name="model_name" placeholder="模块名称" required>
+                                </div>
+                                <div class="form-group col-6">
+                                    <label>数据库名称</label>
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <div class="input-group-text">zb_</div>
+                                        </div>
+                                        <input type="text" class="form-control" v-model="db_name" name="db_name"  placeholder="数据库名称" required>
+                                    </div>
+                                </div>
+                                <div class="form-group col-6">
+                                    <label>命名空间</label>
+                                    <input v-if="db_name" type="text" class="form-control" :value="'app\\'+db_name+'\\controller'" placeholder="命名空间" disabled>
+                                    <input v-if="!db_name" type="text" class="form-control" value="" placeholder="命名空间" disabled>
+                                </div>
+                                <div class="form-group col-12">
+                                    <button type="submit" class="btn btn-db float-right" onclick="model.add(event)">添加</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <hr>
+                    <table class="table table-bordered">
+                        <thead class="thead-light">
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">名称</th>
+                            <th scope="col">数据库</th>
+                            <th scope="col">命名空间</th>
+                            <th scope="col">操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="data in table">
+                            <td>{{data.id}}</td>
+                            <td>{{data.model_name}}</td>
+                            <td>zb_{{data.db_name}}</td>
+                            <td>{{data.model_namespace}}</td>
+                            <td><a :href="'javascript:model.del('+data.id+')'">删除</a></td>
+                        </tr>
+                        <tr v-if="table.length === 0">
+                            <td colspan="7">暂无模块数据</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<table class="table table-bordered" id="base_data">
+    <thead class="thead-light">
+    <tr>
+        <th scope="col">#</th>
+        <th scope="col">分组</th>
+        <th scope="col">模块（数据库）</th>
+        <th scope="col">负责人</th>
+        <th scope="col">数据表</th>
+        <th scope="col">操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr v-for="(list,index) in table">
+        <th scope="row">{{index+1}}</th>
+        <td>{{list.group_name}}</td>
+        <td>{{list.model_name}}（zb_{{list.db_name}}）</td>
+        <td>{{list.person_name}}</td>
+        <td>{{list.table_title}}（tp_{{list.table_name}}）</td>
+        <td>
+            <button type="button" class="btn btn-sm btn-link" :onclick="'table.to_controller('+list.id+')'">控制器</button>
+            <button type="button" class="btn btn-sm btn-link" :onclick="'table.to_validate('+list.id+')'">验证器</button>
+            <button type="button" class="btn btn-sm btn-link" :onclick="'table.to_table_edit('+list.id+')'">修改</button>
+            <button type="button" class="btn btn-sm btn-link" :onclick="'table.del('+list.id+')'">删除</button>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+{/block}
+{block name="footer"}
+<script type="text/javascript">
+    const table = new Vue({
+        el: '#base_data',
+        data: {
+            table: []
+        },
+        created() {
+            this.get_list();
+        },
+        methods: {
+            get_list() {
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/get_base_data')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.table = res.data;
+                        }else{
+                            that.table = [];
+                        }
+                    }
+                });
+            },
+            modalAlert() {
+                const that = this;
+                this.$Modal.alert({
+                    title: '这里是标题名称',
+                    content: '这里是文本内容',
+                    callback: function (action) {
+                        that.$Message(action)
+                    }
+                })
+            },
+            del(id){
+                if (confirm("是否要删除数据表？")){
+                    const that = this;
+                    $.ajax({
+                        url:"{:url('/generate/Api/del_table')}",
+                        type:"POST",
+                        data:{
+                            id:id
+                        },
+                        async:true,
+                        success:function (res) {
+                            if (res.status){
+                                that.get_list();
+                            }
+                        }
+                    })
+                }
+            },
+            to_validate(id){
+                window.sessionStorage.setItem("validate_table_id", id);
+                window.location.href="{:url('/generate/Index/validate_list')}";
+            },
+            to_controller(id){
+                window.sessionStorage.setItem("controller_table_id", id);
+                window.location.href="{:url('/generate/Index/controller_list')}";
+            },
+            to_table_edit(id){
+                window.sessionStorage.setItem("table_edit_id", id);
+                window.location.href="{:url('/generate/Index/table_edit')}";
+            }
+
+        }
+    });
+    //分组
+    const group = new Vue({
+        el: '#group_table',
+        data: {
+            table: []
+        },
+        created() {
+            this.get_list();
+        },
+        methods: {
+            get_list() {
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/get_group_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.table = res.data;
+                        }else{
+                            that.table = [];
+                        }
+                    },
+                });
+            },
+            add(event) {
+                const that = this;
+                event.preventDefault();
+                $.ajax({
+                    url:"{:url('/generate/Api/add_group')}",
+                    type:"POST",
+                    data:{
+                        'name': $('#group_name').val()
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            $('#group_name').val("");
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            },
+            del(id){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/del_group')}",
+                    type:"POST",
+                    data:{
+                        'id': id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            }
+        }
+    })
+    //负责人
+    const person = new Vue({
+        el: '#person_table',
+        data: {
+            table: []
+        },
+        created() {
+            this.get_list();
+        },
+        methods: {
+            get_list() {
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/get_person_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.table = res.data;
+                        }else{
+                            that.table = [];
+                        }
+                    },
+                });
+            },
+            add(event) {
+                const that = this;
+                event.preventDefault();
+                $.ajax({
+                    url:"{:url('/generate/Api/add_person')}",
+                    type:"POST",
+                    data:$('#person_form').serializeArray(),
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            $('#person_form')[0].reset();
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            },
+            del(id){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/del_person')}",
+                    type:"POST",
+                    data:{
+                        'id': id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            }
+        }
+    })
+    //模型
+    const model = new Vue({
+        el: '#model_table',
+        data: {
+            db_name:'',
+            table: [],
+            group: [],
+            character_set: [
+                {
+                    'name':'utf8',
+                    'children': ['utf8_general_ci','utf8_unicode_ci']
+                },{
+                    'name':'gbk',
+                    'children': ['gbk_bin','gbk_chinese_ci']
+                }
+            ]
+        },
+        created() {
+        },
+        methods: {
+            load_base(){
+                const that = this;
+                this.get_list();
+                $.ajax({
+                    url:"{:url('/generate/Api/get_group_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.group = res.data;
+                        }else{
+                            that.group = [];
+                        }
+                    },
+                });
+            },
+            get_list() {
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/get_model_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.table = res.data;
+                        }else{
+                            that.table = [];
+                        }
+                    },
+                });
+            },
+            add(event) {
+                const that = this;
+                event.preventDefault();
+                $.ajax({
+                    url:"{:url('/generate/Api/add_model')}",
+                    type:"POST",
+                    data:$('#model_form').serializeArray(),
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            $('#model_form')[0].reset();
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            },
+            del(id){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/del_model')}",
+                    type:"POST",
+                    data:{
+                        'id': id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.get_list();
+                        }else{
+                            console.log(res);
+                        }
+                    }
+                });
+            }
+        }
+    })
+
+
+</script>
+{/block}

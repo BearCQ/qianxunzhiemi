@@ -1,0 +1,9 @@
+
+return [
+	'controller' => [
+		//需要生成文档的类
+{foreach $table_list as $k=>$v}
+		'app\{:parse_name($db_name)}\controller\{:parse_name($v.table_name,true)}',
+{/foreach}
+	],
+];

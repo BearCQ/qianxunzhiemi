@@ -1,0 +1,24 @@
+
+namespace {$app_namespace}\{$module_name}\validate;
+use think\Validate;
+class {:parse_name($table_name,true)} extends Validate {
+    //验证字段
+    protected $rule = [
+{foreach $rule as $k=>$v }
+        '{$v.name}' => [{$v.value | raw}],
+{/foreach}
+    ];
+    //返回消息
+    protected $message = [
+{foreach $message as $k=>$v }
+        '{$v.name}' => '{$v.value}',
+{/foreach}
+    ];
+{foreach $scene as $k=>$v }
+
+    // {$v.name} 场景
+    public function scene{:ucfirst($v.name)}(){
+        return $this->only([{$v.value}]);
+    }
+{/foreach}
+}

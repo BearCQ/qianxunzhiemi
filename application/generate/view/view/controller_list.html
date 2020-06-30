@@ -1,0 +1,180 @@
+{extend name="view/base" /}
+
+{block name="head"}
+<style type="text/css">
+    th, td {
+        text-align: center !important;
+    }
+</style>
+{/block}
+{block name="main"}
+<div id="controller">
+<h1 class="bd-title" id="content">控制器</h1>
+<hr>
+<div class="mb-3">
+    <a class="btn btn-primary" href="{:url('/generate/Index/add_controller')}">添加接口</a>
+    <button v-if="function_list.length==0"  type="button" class="btn btn-primary ml-2" onclick="controller.auto_create_function()">一键添加</button>
+    <button v-if="function_list.length!==0" type="button" class="btn btn-primary ml-2 disabled">一键添加</button>
+    <button type="button" class="btn btn-danger ml-2" onclick="controller.build()">生成代码</button>
+</div>
+<table class="table table-bordered">
+    <thead class="thead-light">
+    <tr>
+        <th scope="col">#</th>
+        <th scope="col">方法</th>
+        <th scope="col">请求方法</th>
+        <th scope="col">负责人</th>
+        <th scope="col">名称</th>
+        <th scope="col">备注</th>
+        <th scope="col">操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr v-for="(list,index) in function_list">
+        <th scope="row">{{list.id}}</th>
+        <td>{{list.function_name}}</td>
+        <td>{{list.method_type}}</td>
+        <td>{{list.person_name}}</td>
+        <td>{{list.function_title}}</td>
+        <td>{{list.function_desc}}</td>
+        <td>
+            <button type="button" class="btn btn-sm btn-link":onclick="'controller.edit('+list.id+')'">修改</button>
+            <button type="button" class="btn btn-sm btn-link" :onclick="'controller.del('+list.id+')'">删除</button>
+        </td>
+    </tr>
+    <tr v-if="function_list.length==0">
+        <td colspan="7">无数据</td>
+    </tr>
+    </tbody>
+</table>
+</div>
+
+{/block}
+{block name="footer"}
+<script type="text/javascript">
+    const controller = new Vue({
+        el: '#controller',
+        data: {
+            table_id:0,
+            base_data: [],
+            function_list: [],
+        },
+        created() {
+            this.get_list();
+        },
+        methods: {
+            get_list() {
+                const that = this;
+                if(window.sessionStorage.getItem("controller_table_id") === null){
+                    window.location.href="{:url('/generate')}";
+                }
+                that.table_id = window.sessionStorage.getItem("controller_table_id");
+
+                $.ajax({
+                    url:"{:url('/generate/Api/get_validate_base')}",
+                    type:"POST",
+                    data:{
+                        id:that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            Vue.set(that,'base_data',res.data);
+                        }else{
+                            that.base = [];
+                        }
+                    }
+                });
+                $.ajax({
+                    url:"{:url('/generate/Api/get_function_list')}",
+                    type:"POST",
+                    data:{
+                        table_id:that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            Vue.set(that,'function_list',res.data);
+                        }else{
+                            that.function_list = [];
+                        }
+                    }
+                });
+
+            },
+            modalAlert() {
+                const that = this;
+                this.$Modal.alert({
+                    title: '这里是标题名称',
+                    content: '这里是文本内容',
+                    callback: function (action) {
+                        that.$Message(action)
+                    }
+                })
+            },
+            del(id){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/del_function')}",
+                    type:"POST",
+                    data:{
+                        id:id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.get_list();
+                        }
+                    }
+                })
+            },
+            edit(id){
+                window.sessionStorage.setItem("function_id", id);
+                window.location.href="{:url('/generate/Index/edit_function')}";
+            },
+            to_validate(id){
+                window.sessionStorage.setItem("validate_table_id", id);
+                window.location.href="{:url('/generate/Index/validate_list')}";
+            },
+            build(){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Create/build')}",
+                    type:"POST",
+                    data:{
+                        table_id:that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            alert("创建成功！");
+                        }
+                    }
+                })
+            },
+            auto_create_function(){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Index/auto_create_function')}",
+                    type:"POST",
+                    data:{
+                        table_id:that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.get_list();
+                            alert("添加成功！");
+                        }else{
+                            alert("添加失败！");
+                        }
+                    }
+                })
+            }
+
+        }
+    });
+
+
+</script>
+{/block}

@@ -1,0 +1,1562 @@
+{extend name="view/base" /}
+
+{block name="head"}
+<style type="text/css">
+    th, td {
+        text-align: center !important;
+    }
+</style>
+{/block}
+{block name="main"}
+
+<h1 class="bd-title" id="content">编辑接口</h1>
+<hr>
+
+<div id="controller">
+    <form action="" id="new_function_form" class="row" onsubmit="controller.submit_f_data(event)">
+        <div class="form-group col-4">
+            <label>数据表</label>
+            <select class="form-control" :value="base_data.id" required disabled>
+                <option v-for="list in table_list" :value="list.id">{{list.table_prefix}}{{list.table_name}}</option>
+            </select>
+        </div>
+        <div class="form-group col-4">
+            <label>接口标题</label>
+            <input type="text" class="form-control" v-model="function_title" placeholder="接口标题" required>
+        </div>
+        <div class="form-group col-10">
+            <label>接口说明</label>
+            <textarea v-model="function_desc" class="form-control"></textarea>
+        </div>
+        <div class="form-group col-3">
+            <label>负责人</label>
+            <select class="form-control" v-model="person_name" required>
+                <option v-for="list in person_list" :value="list.name">{{list.name}}</option>
+            </select>
+        </div>
+        <div class="form-group col-3">
+            <label>接口名称</label>
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <div class="input-group-text">/{{base_data.db_name}}/{{base_data.table_name}}/</div>
+                </div>
+                <input type="text" class="form-control" v-model="function_name" placeholder="" required>
+            </div>
+        </div>
+        <div class="form-group col-4">
+            <label>访问方式</label>
+            <select class="form-control" v-model="method_type_f" required>
+                <option v-for="list in method_type" :value="list">{{list}}</option>
+            </select>
+        </div>
+        <button type="submit" id="btn_submit" style="display: none"></button>
+    </form>
+    <!--组件主体-->
+    <form class="c_module_content">
+        <template v-for="(module,index) in function_list">
+            <!-- 输入参数 input -->
+            <template v-if="module.type==='input'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>输入参数</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col" width="100">接口返回</th>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举注释</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.data">
+                                <td>
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" v-model="function_list[index].data[i].is_back" class="custom-control-input" :id="'is_back_'+index+'_'+i">
+                                        <label class="custom-control-label" :for="'is_back_'+index+'_'+i">{{list.is_back?'返回':'不返回'}}</label>
+                                    </div>
+                                </td>
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_data('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="7">
+                                    <button type="button" class="btn btn-light" style="width: 100%" :onclick="'controller.f_input_modal('+index+')'">+</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <!-- 验证器 validate -->
+            <template v-if="module.type==='validate'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>验证器</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输入变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <!--<input type="text" class="form-control" v-model="function_list[index].input_name" required>-->
+                                <select class="form-control" v-model="function_list[index].input_name" placeholder="变量名称" required>
+                                    <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && i<index" :value="li.return_name">{{li.return_name}}</option>
+                                </select>
+                            </div>
+                            <label class="ml-3">场景：</label>
+                            <select class="form-control" v-model="function_list[index].validate" required>
+                                <option v-for="li in validate_scene_list" :value="li" selected = "selected">{{li.name}}</option>
+                            </select>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" placeholder="变量名称" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-11">
+
+                    </div>
+                </div>
+            </template>
+            <!-- 插入数据 insert -->
+            <template v-if="module.type==='insert'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>插入数据</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" required>
+                            </div>
+                            <label class="ml-3">数据表：</label>
+                            <select class="form-control" v-model="function_list[index].table_name" required>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_insert.field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == function_list[index].table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.insert_add_field('+index+')'">添加字段</button>
+                        </div>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">选择变量</th>
+                                <th scope="col">选择变量名</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.data">
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].data[i].root_var_name">
+                                        <option value="">无</option>
+                                        <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].data[i].root_field_name" v-if="function_list[index].data[i].root_var_name!==''">
+                                        <template  v-for="li in function_list" v-if="li.return_name == function_list[index].data[i].root_var_name">
+                                            <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                        </template>
+                                    </select>
+                                    <input type="text" v-if="function_list[index].data[i].root_var_name==''" v-model="function_list[index].data[i].root_field_name" class="form-control form-control-sm">
+                                </td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control form-control-sm">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_data('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.data.length==0">
+                                <td colspan="8">无数据</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <!-- 删除数据 delete -->
+            <template v-if="module.type==='delete'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>删除数据</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" required>
+                            </div>
+                            <label class="ml-3">数据表：</label>
+                            <template v-if="module.where.length === 0">
+                            <select class="form-control" v-model="function_list[index].table_name" required>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            </template>
+                            <template v-if="module.where.length !== 0">
+                            <select class="form-control" v-model="function_list[index].table_name" required disabled>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            </template>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_delete.field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == function_list[index].table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.delete_add_where('+index+')'">添加字段</button>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <h4>where</h4>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">条件</th>
+                                <th scope="col">选择变量</th>
+                                <th scope="col">选择变量名</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.where">
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].condition" required>
+                                        <option v-for="li in condition" :value="li">{{li}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].con_var_name">
+                                        <option value="">无</option>
+                                        <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                    </select>
+                                </td>
+                                <td>
+
+
+                                    <input type="text" v-if="function_list[index].where[i].con_var_name==''" v-model="function_list[index].where[i].con_field_name" class="form-control form-control-sm" placeholder="变量名" required>
+                                </td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_where('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.where.length==0">
+                                <td colspan="9">无数据</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </template>
+            <!-- 更新数据 update -->
+            <template v-if="module.type==='update'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>更新数据</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" required>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <h4>field</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <label class="ml-3">数据表：</label>
+                            <select class="form-control" v-model="function_list[index].table_name" required>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_insert.field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == function_list[index].table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.insert_add_field('+index+')'">添加字段</button>
+                        </div>
+                    </div>
+
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">选择变量</th>
+                                <th scope="col">选择变量名</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.data">
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].data[i].root_var_name">
+                                        <option value="">无</option>
+                                        <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].data[i].root_field_name" v-if="function_list[index].data[i].root_var_name!==''">
+                                        <template  v-for="li in function_list" v-if="li.return_name == function_list[index].data[i].root_var_name">
+                                            <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                        </template>
+                                    </select>
+                                    <input type="text" v-if="function_list[index].data[i].root_var_name==''" v-model="function_list[index].data[i].root_field_name" class="form-control">
+                                </td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control form-control-sm">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_data('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.data.length==0">
+                                <td colspan="8">无数据</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-12">
+                        <h4>where</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <label>数据表：</label>
+                            <select class="form-control" v-model="f_temp_delete.table_name" required>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_delete.field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == f_temp_delete.table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.update_add_where('+index+')'">添加字段</button>
+                        </div>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">条件</th>
+                                <th scope="col">选择变量</th>
+                                <th scope="col">选择变量名</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.where">
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].condition" required>
+                                        <option v-for="li in condition" :value="li">{{li}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].con_var_name">
+                                        <option value="">无</option>
+                                        <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].con_field_name" v-if="function_list[index].where[i].con_var_name!==''" required>
+                                        <template  v-for="li in function_list" v-if="li.return_name == function_list[index].where[i].con_var_name">
+                                            <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                        </template>
+                                    </select>
+                                    <input type="text" v-if="function_list[index].where[i].con_var_name==''" v-model="function_list[index].where[i].con_field_name" class="form-control form-control-sm" placeholder="变量名" required>
+                                </td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_where('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.where.length==0">
+                                <td colspan="9">无数据</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </template>
+            <!-- 查询数据 select -->
+            <template v-if="module.type==='select'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>数据查询</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <label class="ml-3">输出变量：</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <div class="input-group-text">$</div>
+                                </div>
+                                <input type="text" class="form-control" v-model="function_list[index].return_name" required>
+                            </div>
+                            <label class="ml-3">查询方式：</label>
+                            <select class="form-control" v-model="function_list[index].select_type" required>
+                                <option v-for="li in select_type" :value="li">{{li}}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <h4>field</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <label class="ml-3">数据表：</label>
+                            <template v-if="function_list[index].data.length===0 | function_list[index].table_name === ''">
+                                <select class="form-control" v-model="function_list[index].table_name" required>
+                                    <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                                </select>
+                            </template>
+                            <template v-if="function_list[index].data.length!==0 && function_list[index].table_name !==''">
+                                <select class="form-control" v-model="function_list[index].table_name" required disabled>
+                                    <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                                </select>
+                            </template>
+                            <template v-if="function_list[index].join.length!==0">
+                                <label class="ml-3">别名：</label>
+                                <template v-if="function_list[index].data.length===0 | function_list[index].alias === ''">
+                                    <input type="text" class="form-control ml-3" v-model="function_list[index].alias" placeholder="别名" required>
+                                </template>
+                                <template v-if="function_list[index].data.length!==0 && function_list[index].alias !==''">
+                                    <input type="text" class="form-control ml-3" v-model="function_list[index].alias" placeholder="别名" required readonly>
+                                </template>
+                            </template>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_select_field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == function_list[index].table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.select_add_field('+index+')'">添加字段</button>
+                            <button type="button" class="btn btn-db ml-3" :onclick="'controller.select_add_join('+index+')'">添加关联查询</button>
+
+
+                        </div>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col" width="100">接口返回</th>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举注释</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.data">
+                                <td>
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" v-model="function_list[index].data[i].is_back" class="custom-control-input" :id="'is_back_'+index+'_'+i">
+                                        <label class="custom-control-label" :for="'is_back_'+index+'_'+i">{{list.is_back?'返回':'不返回'}}</label>
+                                    </div>
+                                </td>
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_data('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.data.length==0 && function_list[index].join.length===0">
+                                <td colspan="9">查询全部字段</td>
+                            </tr>
+                            <tr v-if="module.data.length==0 && function_list[index].join.length!==0">
+                                <td colspan="9">无查询字段</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <template v-for="(j_li,j_i) in function_list[index].join">
+
+                        <div class="col-12">
+                            <h4>{{j_li.type}} JOIN</h4>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-group form-inline">
+                                <button type="button" class="btn btn-secondary" :onclick="'controller.del_f_join('+index+','+j_i+')'">删除</button>
+                                <label class="ml-3">数据表：</label>
+
+                                <select class="form-control" v-model="function_list[index].join[j_i].type" required>
+                                    <option v-for="li in join_type" :value="li">{{li}}</option>
+                                </select>
+
+                                <template v-if="j_li.data.length===0 | j_li.table_name === ''">
+                                    <select class="form-control ml-2" v-model="function_list[index].join[j_i].table_name" required>
+                                        <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                                    </select>
+                                </template>
+                                <template v-if="j_li.data.length!==0 && j_li.table_name !==''">
+                                    <select class="form-control ml-2" v-model="function_list[index].join[j_i].table_name" required disabled>
+                                        <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                                    </select>
+                                </template>
+
+                                <template v-if="function_list[index].join.length!==0">
+                                    <label class="ml-3">别名：</label>
+                                    <template v-if="j_li.data.length===0 | j_li.alias === ''">
+                                        <input type="text" class="form-control ml-3" v-model="function_list[index].join[j_i].alias" placeholder="别名" required>
+                                    </template>
+                                    <template v-if="j_li.data.length!==0 && j_li.alias !==''">
+                                        <input type="text" class="form-control ml-3" v-model="function_list[index].join[j_i].alias" placeholder="别名" required readonly>
+                                    </template>
+                                </template>
+
+                                <label class="ml-3">字段：</label>
+                                <select class="form-control"  v-model="f_temp_select_join_field" required>
+                                    <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == function_list[index].join[j_i].table_name">
+                                        <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                    </template>
+                                </select>
+                                <button type="button" class="btn btn-primary ml-3" :onclick="'controller.add_f_select_join('+index+','+j_i+')'">添加字段</button>
+                            </div>
+                        </div>
+                        <!--join form END-->
+                        <!--join table begin-->
+                        <div class="col-11">
+                            <table class="table table-bordered">
+                                <thead class="thead-light">
+                                <tr>
+                                    <th scope="col" width="100">接口返回</th>
+                                    <th scope="col">数据表</th>
+                                    <th scope="col">字段名</th>
+                                    <th scope="col">字段</th>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">枚举注释</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="(list,i) in module.join[j_i].data">
+                                    <td>
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" v-model="function_list[index].join[j_i].data[i].is_back" class="custom-control-input" :id="'is_back_'+index+'_'+i">
+                                            <label class="custom-control-label" :for="'is_back_'+index+'_'+i">{{list.is_back?'返回':'不返回'}}</label>
+                                        </div>
+                                    </td>
+                                    <td>{{list.table_name}}</td>
+                                    <td>{{list.comment}}</td>
+                                    <td>{{list.field_name}}</td>
+                                    <td>{{list.field_type}}</td>
+                                    <td>
+                                        <template v-if="list.enum.length!==0">
+                                            <select class="form-control form-control-sm">
+                                                <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                            </select>
+                                        </template>
+                                        <template v-if="list.enum.length===0">—</template>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_select_join('+index+','+j_i+','+i+')'">删除</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="module.join[j_i].data.length==0">
+                                    <td colspan="9">无查询字段</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </template>
+
+                    <template v-if="function_list[index].join.length!==0">
+                        <div class="col-11">
+                            <h4>关联条件</h4>
+                        </div>
+                        <div class="col-11">
+                            <div class="form-group form-inline">
+                                <label>关联数据表：</label>
+                                <select class="form-control" v-model="f_temp_select_join_condition.join_alias_name" required>
+                                    <option v-for="li in function_list[index].join" :value="li.alias">{{li.alias}} - {{li.table_name}}</option>
+                                </select>
+                                <label class="ml-3">字段：</label>
+                                <select class="form-control"  v-model="f_temp_select_join_condition.field" required>
+                                    <template v-for="li in function_list[index].join" v-if="li.alias == f_temp_select_join_condition.join_alias_name">
+                                        <option v-for="fie in li.data" :value="fie">{{fie.comment}}-{{fie.field_name}}</option>
+                                    </template>
+                                </select>
+                                <button type="button" class="btn btn-primary ml-3" :onclick="'controller.add_f_select_condition('+index+')'">添加字段</button>
+                            </div>
+                        </div>
+                        <!--   关联条件  form end -->
+                        <!--   关联条件  表格 begin -->
+                        <div class="col-11">
+                            <table class="table table-bordered">
+                                <thead class="thead-light">
+                                <tr>
+                                    <th scope="col">关联数据表</th>
+                                    <th scope="col">字段名</th>
+                                    <th scope="col">字段</th>
+                                    <th scope="col">条件</th>
+                                    <th scope="col">选择变量</th>
+                                    <th scope="col">选择变量名</th>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">枚举</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="(list,c_i) in module.condition">
+                                    <td>{{list.alias}}</td>
+                                    <td>{{list.comment}}</td>
+                                    <td>{{list.field}}</td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].condition[c_i].condition" required>
+                                            <option v-for="li in condition" :value="li">{{li}}</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].condition[c_i].left_var">
+                                            <option value="">无</option>
+                                            <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<=index" :value="li.return_name">${{li.return_name}}</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].condition[c_i].left_field" v-if="function_list[index].condition[c_i].left_var!==''" required>
+                                            <template  v-for="li in function_list" v-if="li.return_name == function_list[index].condition[c_i].left_var">
+                                                <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                            </template>
+                                        </select>
+                                        <input type="text" v-if="function_list[index].condition[c_i].left_var==''" v-model="function_list[index].condition[c_i].left_field" class="form-control form-control-sm" placeholder="变量名" required>
+                                    </td>
+                                    <td>{{list.type}}</td>
+                                    <td>
+                                        <template v-if="list.enum.length!==0">
+                                            <select class="form-control form-control-sm">
+                                                <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                            </select>
+                                        </template>
+                                        <template v-if="list.enum.length===0">—</template>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_select_condition('+index+','+c_i+')'">删除</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="module.condition.length==0">
+                                    <td colspan="9">无数据</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+                    <!--     where      -->
+                    <div class="col-12">
+                        <h4>where</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <label class="ml-3">数据表：</label>
+                            <select class="form-control" v-model="f_temp_delete.table_name" required>
+                                <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                            </select>
+                            <label class="ml-3">字段：</label>
+                            <select class="form-control"  v-model="f_temp_delete.field" required>
+                                <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == f_temp_delete.table_name">
+                                    <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                </template>
+                            </select>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.update_add_where('+index+')'">添加字段</button>
+                        </div>
+                    </div>
+                    <div class="col-11">
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                            <tr>
+                                <th scope="col">数据表</th>
+                                <th scope="col">字段名</th>
+                                <th scope="col">字段</th>
+                                <th scope="col">条件</th>
+                                <th scope="col">选择变量</th>
+                                <th scope="col">选择变量名</th>
+                                <th scope="col">类型</th>
+                                <th scope="col">枚举</th>
+                                <th scope="col">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr v-for="(list,i) in module.where">
+                                <td>{{list.table_name}}</td>
+                                <td>{{list.comment}}</td>
+                                <td>{{list.field_name}}</td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].condition" required>
+                                        <option v-for="li in condition" :value="li">{{li}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].con_var_name">
+                                        <option value="">无</option>
+                                        <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-control form-control-sm" v-model="function_list[index].where[i].con_field_name" v-if="function_list[index].where[i].con_var_name!==''" required>
+                                        <template  v-for="li in function_list" v-if="li.return_name == function_list[index].where[i].con_var_name">
+                                            <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                        </template>
+                                    </select>
+                                    <input type="text" v-if="function_list[index].where[i].con_var_name==''" v-model="function_list[index].where[i].con_field_name" class="form-control form-control-sm" placeholder="变量名" required>
+                                </td>
+                                <td>{{list.field_type}}</td>
+                                <td>
+                                    <template v-if="list.enum.length!==0">
+                                        <select class="form-control">
+                                            <option v-for="li in list.enum">{{li.key}} - {{li.name}}</option>
+                                        </select>
+                                    </template>
+                                    <template v-if="list.enum.length===0">—</template>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_module_where('+index+','+i+')'">删除</button>
+                                </td>
+                            </tr>
+                            <tr v-if="module.where.length==0">
+                                <td colspan="9">查询全部记录</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <!-- 错误提示 error_msg -->
+            <template v-if="module.type==='error_msg'">
+                <div class="row">
+                    <div class="col-2">
+                        <h4>错误提示</h4>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group form-inline">
+                            <button type="button" class="btn btn-danger" :onclick="'controller.del_function_module('+index+')'">删除</button>
+                            <button type="button" class="btn btn-primary ml-3" :onclick="'controller.add_f_error_msg('+index+')'">添加条件</button>
+                        </div>
+                    </div>
+
+                    <template v-for="(h_li,h_i) in module.hint">
+                        <div class="col-12">
+                            <div class="form-group form-inline">
+                                <label><template v-if="h_i!==0"><strong class="mr-2">else </strong></template>错误结果提示</label>
+                                <input type="text" class="form-control ml-3" placeholder="报错提示" v-model="function_list[index].hint[h_i].message">
+                                <button type="button" class="btn btn-secondary btn-sm ml-3" v-if="h_i>0" :onclick="'controller.del_f_error_msg('+index+','+h_i+')'">删除</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <table class="table table-bordered">
+                                <thead class="thead-light">
+                                <tr>
+                                    <th scope="col">变量</th>
+                                    <th scope="col">字段</th>
+                                    <th scope="col">条件</th>
+                                    <th scope="col">变量</th>
+                                    <th scope="col">字段</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="(list,i) in h_li.where">
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].hint[h_i].where[i].var_name">
+                                            <option value="">无</option>
+                                            <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].hint[h_i].where[i].field_name" v-if="function_list[index].hint[h_i].where[i].var_name!==''" required>
+                                            <template  v-for="li in function_list" v-if="li.return_name == function_list[index].hint[h_i].where[i].var_name">
+                                                <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                            </template>
+                                        </select>
+                                        <input type="text" v-if="function_list[index].hint[h_i].where[i].var_name==''" v-model="function_list[index].hint[h_i].where[i].field_name" class="form-control form-control-sm" placeholder="变量名" required>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].hint[h_i].where[i].condition" required>
+                                            <option v-for="li in condition" :value="li">{{li}}</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].hint[h_i].where[i].con_var_name">
+                                            <option value="">无</option>
+                                            <option v-for="(li,i) in function_list" v-if="li.return_name!=='' && li.data && li.data && i<index" :value="li.return_name">${{li.return_name}}</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="form-control form-control-sm" v-model="function_list[index].hint[h_i].where[i].con_field_name" v-if="function_list[index].hint[h_i].where[i].con_var_name!==''" required>
+                                            <template  v-for="li in function_list" v-if="li.return_name == function_list[index].hint[h_i].where[i].con_var_name">
+                                                <option v-for="l in li.data" :value="l.field_name">{{l.field_name}} - {{l.comment}}</option>
+                                            </template>
+                                        </select>
+                                        <input type="text" v-if="function_list[index].hint[h_i].where[i].con_var_name==''" v-model="function_list[index].hint[h_i].where[i].con_field_name" class="form-control form-control-sm" placeholder="变量名" required>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" :onclick="'controller.del_f_error_msg_where('+index+','+h_i+','+i+')'">删除</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="6">
+                                        <button type="button" class="btn btn-light w-100" :onclick="'controller.add_f_error_msg_where('+index+','+h_i+')'">+</button>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </template>
+
+
+                </div>
+            </template>
+
+        </template>
+
+    </form>
+    <!-- input 输入参数 modal -->
+    <form action="" onsubmit="controller.input_add_field(event)">
+        <div class="modal fade" id="f_input_add_var" tabindex="-1" role="dialog" aria-labelledby="FunctionInputAddVarLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="FunctionInputAddVarLabel">添加参数</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <div class="form-group">
+                                <label>返回参数</label>
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" v-model="f_temp_input.is_back" class="custom-control-input" id="f_t_input_back">
+                                    <label class="custom-control-label" for="f_t_input_back">{{f_temp_input.is_back?'返回':'不返回'}}</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>数据表</label>
+                                <select class="form-control" v-model="f_temp_input.table_name">
+                                    <option value="">无</option>
+                                    <option v-for="li in table_list" :value="li.table_prefix+li.table_name">{{li.table_prefix}}{{li.table_name}}</option>
+                                </select>
+                            </div>
+                            <template v-if="f_temp_input.table_name != ''">
+                                <div class="form-group">
+                                    <label>字段名</label>
+                                    <select class="form-control"  v-model="f_temp_input.field" required>
+                                        <template v-for="li in table_list" v-if="(li.table_prefix+li.table_name) == f_temp_input.table_name">
+                                            <option v-for="fie in li.field" :value="fie">{{fie.comment}}-{{fie.name}}</option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
+                            <template v-if="f_temp_input.table_name == ''">
+                                <div class="form-group">
+                                    <label>字段名</label>
+                                    <input type="text" class="form-control" v-model="f_temp_input.field.comment" placeholder="字段名">
+                                </div>
+                                <div class="form-group">
+                                    <label>字段</label>
+                                    <input type="text" class="form-control" v-model="f_temp_input.field.name" placeholder="字段">
+                                </div>
+                                <div class="form-group">
+                                    <label>类型</label>
+                                    <select class="form-control"  v-model="f_temp_input.field.type" required>
+                                        <option v-for="li in field_type" :value="li">{{li}}</option>
+                                    </select>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">关闭</button>
+                        <button type="submit" class="btn btn-primary">添加</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+
+    <div class="nav flex-column nav-pills f_r_nav">
+        <div class="nav_title">组件</div>
+        <a class="nav-link" href="javascript:controller.add_input();">输入</a>
+        <a class="nav-link" href="javascript:controller.add_validate();">验证器</a>
+<!--        <a class="nav-link" href="javascript:void(0);">结果转换</a>-->
+        <a class="nav-link" href="javascript:controller.add_error_msg();">错误提示</a>
+        <a class="nav-link" href="javascript:controller.add_select();">查询</a>
+        <a class="nav-link" href="javascript:controller.add_insert();">插入</a>
+        <a class="nav-link" href="javascript:controller.add_update()">更新</a>
+        <a class="nav-link" href="javascript:controller.add_delete();">删除</a>
+        <a class="submit" href="javascript:controller.click_submit();">修改</a>
+    </div>
+</div>
+
+
+
+{/block}
+{block name="footer"}
+<script type="text/javascript">
+    //数据库表
+    const controller = new Vue({
+        el: '#controller',
+        data: {
+            table_id: 0,
+            base_data:[],
+            table_list:[],
+            model_list:[],
+            person_list:[],
+            validate_scene_list:[],
+            method_type:['*','get','post','put','delete'],
+            join_type:['INNER','LEFT','RIGHT','FULL'],
+            select_type:['select','find','paginate'],
+            field_type: ['VarChar','Int','TinyInt','Enum','Text','Date'],
+            condition: ['>','=','<','<>','>=','<='],
+            f_temp_input:{
+                f_index: 0,
+                is_back:true,
+                table_name:'',
+                field:{
+                    comment:'',
+                    name:'',
+                    type:'',
+                    enum:[],
+                }
+            },
+            f_temp_insert:{
+                table_name:'',
+                field:{}
+            },
+            f_temp_delete:{
+                table_name:'',
+                field:{}
+            },
+            f_temp_select_field:[],
+            f_temp_select_join_field:[],
+            f_temp_select_join_condition:{
+                join_alias_name:'',
+                field:[]
+            },
+            function_list:[],
+            function_id:0,
+            function_title:'',
+            function_desc:'',
+            person_name:'',
+            function_name:'',
+            method_type_f:''
+        },
+        created() {
+            this.get_list();
+        },
+        methods: {
+            get_list() {
+                const that = this;
+                if(window.sessionStorage.getItem("controller_table_id") === null){
+                    window.location.href="{:url('/generate')}";
+                }
+                that.table_id = window.sessionStorage.getItem("controller_table_id");
+                that.function_id = window.sessionStorage.getItem("function_id");
+                $.ajax({
+                    url:"{:url('/generate/Api/get_validate_base')}",
+                    type:"POST",
+                    data:{
+                        id: that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.base_data = res.data;
+                            that.get_table_list_all();
+                        }else{
+                            that.base_data = [];
+                        }
+                    },
+                });
+                $.ajax({
+                    url:"{:url('/generate/Api/get_function')}",
+                    type:"POST",
+                    data:{
+                        id: that.function_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.function_title = res.data.function_title;
+                            that.function_desc = res.data.function_desc;
+                            that.person_name = res.data.person_name;
+                            that.function_name = res.data.function_name;
+                            that.method_type_f = res.data.method_type;
+                            that.function_list = res.data.function_data;
+                        }else{
+                            that.base_data = [];
+                        }
+                    },
+                });
+
+                $.ajax({
+                    url:"{:url('/generate/Api/get_validate_scene_all_data')}",
+                    type:"POST",
+                    data:{
+                        table_id: that.table_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.validate_scene_list = res.data;
+                        }else{
+                            that.validate_scene_list = [];
+                        }
+                    },
+                });
+                $.ajax({
+                    url:"{:url('/generate/Api/get_model_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.model_list = res.data;
+                        }else{
+                            that.model_list = [];
+                        }
+                    },
+                });
+                $.ajax({
+                    url:"{:url('/generate/Api/get_group_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.group = res.data;
+                        }else{
+                            that.group = [];
+                        }
+                    },
+                });
+                $.ajax({
+                    url:"{:url('/generate/Api/get_person_list')}",
+                    type:"GET",
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.person_list = res.data;
+                        }else{
+                            that.person_list = [];
+                        }
+                    },
+                });
+            },
+            get_table_list_all(){
+                const that = this;
+                $.ajax({
+                    url:"{:url('/generate/Api/get_table_list_all')}",
+                    type:"POST",
+                    data:{
+                        model_id:this.base_data.model_id
+                    },
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            that.table_list = res.data;
+                        }else{
+                            that.table_list = [];
+                        }
+                    },
+                });
+            },
+            del_function_module(index){
+                Vue.delete(this.function_list,index);
+            },
+            del_f_module_data(f_index,d_index){
+                Vue.delete(this.function_list[f_index].data,d_index);
+            },
+
+            del_f_module_where(f_index,d_index){
+                Vue.delete(this.function_list[f_index].where,d_index);
+            },
+
+            //添加组件 - 输入参数
+            add_input(){
+                const that = this;
+                const data = {
+                    type:'input',
+                    return_name:'input',
+                    data:[]
+                };
+                Vue.set(that.function_list,Object.keys(that.function_list).length,data);
+            },
+
+            f_input_modal(index){
+                Vue.set(this.f_temp_input,'f_index',index);
+                $('#f_input_add_var').modal('show');
+                const table_name = this.base_data.table_prefix + this.base_data.table_name;
+                Vue.set(this.f_temp_input,'table_name',table_name);
+            },
+            f_input_modal_hide(){
+                $('#f_input_add_var').modal('hide');
+            },
+
+            input_add_field(event){
+                event.preventDefault();
+                const f_temp_input = this.f_temp_input;
+                const data = {
+                    is_back:f_temp_input.is_back,
+                    table_name: f_temp_input.table_name,
+                    comment: f_temp_input.field.comment,
+                    field_name: f_temp_input.field.name,
+                    field_type: f_temp_input.field.type,
+                    enum:(f_temp_input.table_name===''?[]:f_temp_input.field.enum),
+                };
+                Vue.set(this.function_list[f_temp_input.f_index].data,Object.keys(this.function_list[f_temp_input.f_index].data).length,data);
+                this.f_input_modal_hide();
+                this.f_temp_input.field={};
+            },
+
+            //添加组件 - 数据插入 - insert
+            add_insert(){
+                const that = this;
+                const data = {
+                    type:'insert',
+                    table_name:'',
+                    data:[],
+                    return_name:'add_re'
+                };
+                // {
+                //     table_name:'',
+                //     comment:'',
+                //     field_name:'',
+                //     field_type:'',
+                //     root_var_name:'',
+                //     root_field_name:'',
+                //     enum:[],
+                // }
+                Vue.set(that.function_list,Object.keys(that.function_list).length,data);
+            },
+            insert_add_field(index){
+                const that = this;
+                const f_temp_insert = that.f_temp_insert;
+                const data = {
+                    table_name:that.function_list[index].table_name,
+                    comment:f_temp_insert.field.comment,
+                    field_name:f_temp_insert.field.name,
+                    field_type:f_temp_insert.field.type,
+                    root_var_name:'',
+                    root_field_name:'',
+                    enum:f_temp_insert.field.enum,
+                };
+                Vue.set(that.function_list[index].data,Object.keys(that.function_list[index].data).length,data);
+            },
+
+            //添加组件 - 删除数据 -delete
+            add_delete(){
+                const that = this;
+                const data = {
+                    type:'delete',
+                    where:[],
+                    return_name:'delete_re'
+                };                        // {
+                //     table_name:'',
+                //     comment:'',
+                //     field_name:'',
+                //     field_type:'',
+                //     condition:'',
+                //     con_var_name:'',
+                //     con_field_name:'',
+                //     enum:[],
+                // }
+                Vue.set(that.function_list,Object.keys(that.function_list).length,data);
+            },
+            delete_add_where(index){
+                const that = this;
+                const f_temp_delete = that.f_temp_delete;
+                const where = {
+                    table_name:that.function_list[index].table_name,
+                    comment:f_temp_delete.field.comment,
+                    field_name:f_temp_delete.field.name,
+                    field_type:f_temp_delete.field.type,
+                    condition:'',
+                    con_var_name:'',
+                    con_field_name:'',
+                    enum:f_temp_delete.field.enum,
+                };
+                console.log(where);
+                Vue.set(that.function_list[index].where,Object.keys(that.function_list[index].where).length,where);
+            },
+            update_add_where(index){
+                const that = this;
+                const f_temp_delete = that.f_temp_delete;
+                const where = {
+                    table_name:f_temp_delete.table_name,
+                    comment:f_temp_delete.field.comment,
+                    field_name:f_temp_delete.field.name,
+                    field_type:f_temp_delete.field.type,
+                    condition:'',
+                    con_var_name:'',
+                    con_field_name:'',
+                    enum:f_temp_delete.field.enum,
+                };
+                console.log(where);
+                Vue.set(that.function_list[index].where,Object.keys(that.function_list[index].where).length,where);
+            },
+            //添加组件 - 更新数据 - update
+            add_update(){
+                const that = this;
+                const data = {
+                    type:'update',
+                    table_name:'',
+                    data:[],
+                    where:[],
+                    return_name:'update_re'
+                };
+                Vue.set(that.function_list,Object.keys(that.function_list).length,data);
+            },
+            //添加组件 - 查询数据 - select
+            add_select(){
+                const that = this;
+                const data = {
+                    type:'select',
+                    select_type:'select',
+                    table_name:'',
+                    alias:"",
+                    data:[],
+                    join:[],
+                    condition:[],
+                    where:[],
+                    return_name:'select_re'
+                };
+                Vue.set(that.function_list,Object.keys(that.function_list).length,data);
+            },
+            //select - 添加字段
+            select_add_field(index){
+                const table_name = this.function_list[index].table_name;
+                const f_temp_select_field = this.f_temp_select_field;
+                if (table_name === '' || f_temp_select_field.length===0){
+                    return;
+                }
+                const data = {
+                    is_back:true,
+                    table_name:table_name,
+                    comment:f_temp_select_field.comment,
+                    field_name:f_temp_select_field.name,
+                    field_type:f_temp_select_field.type,
+                    enum:f_temp_select_field.enum,
+                };
+                Vue.set(this.function_list[index].data,Object.keys(this.function_list[index].data).length,data);
+                Vue.set(this,'f_temp_select_field',[]);
+            },
+            //select - join
+            select_add_join(index){
+                const join = {
+                        type:'LEFT',
+                        table_name:'',
+                        alias:'',
+                        data:[],
+                        condition:[],
+                    };
+                Vue.set(this.function_list[index].join,Object.keys(this.function_list[index].join).length,join);
+            },
+            del_f_join(index,j_i){
+                Vue.delete(this.function_list[index].join,j_i);
+            },
+            del_f_select_join(index,j_i,i){
+                Vue.delete(this.function_list[index].join[j_i].data,i);
+            },
+            add_f_select_join(index,j_i){
+                const table_name = this.function_list[index].join[j_i].table_name;
+                const alias = this.function_list[index].join[j_i].table_name;
+                const field = this.f_temp_select_join_field;
+                if (table_name === '' || alias==='' || field.length===0){
+                    return;
+                }
+                const data = {
+                    is_back:true,
+                    table_name:table_name,
+                    comment:field.comment,
+                    field_name:field.name,
+                    field_type:field.type,
+                    enum:field.enum,
+                };
+                Vue.set(this.function_list[index].join[j_i].data,Object.keys(this.function_list[index].join[j_i].data).length,data);
+                Vue.set(this,'f_temp_select_join_field',[]);
+            },
+            add_f_select_condition(index){
+                const condition = this.f_temp_select_join_condition;
+                if(condition.join_alias_name==='' || condition.field.length === 0){
+                    return false;
+                }
+                const data = {
+                    alias:condition.join_alias_name,
+                    comment:condition.field.comment,
+                    field:condition.field.field_name,
+                    condition:'=',
+                    left_var:'',
+                    left_field:'',
+                    type:condition.field.field_type,
+                    enum:condition.field.enum
+                };
+                Vue.set(this.function_list[index].condition,Object.keys(this.function_list[index].condition).length,data);
+                Vue.set(this.f_temp_select_join_condition,'field',[]);
+
+            },
+            del_f_select_condition(index,c_i){
+                Vue.delete(this.function_list[index].condition,c_i);
+            },
+
+            //添加组件 - 错误提示 - error_msg
+            add_error_msg(){
+                const data = {
+                    type:'error_msg',
+                    hint:[
+                        {
+                            message:'',
+                            where:[
+                                {
+                                    var_name:'',
+                                    field_name:'',
+                                    condition:'=',
+                                    con_var_name:'',
+                                    con_field_name:''
+                                }
+                            ]
+                        }
+                    ]
+                };
+                Vue.set(this.function_list,Object.keys(this.function_list).length,data);
+            },
+
+            add_f_error_msg(index){
+                const msg = {
+                    message:'',
+                    where:[
+                        {
+                            var_name:'',
+                            field_name:'',
+                            condition:'=',
+                            c_var_name:'',
+                            c_field_name:''
+                        }
+                    ]
+                };
+                Vue.set(this.function_list[index].hint,Object.keys(this.function_list[index].hint).length,msg);
+            },
+            del_f_error_msg(index,h_i){
+                Vue.delete(this.function_list[index].hint,h_i);
+            },
+            add_f_error_msg_where(index,h_i){
+                const where = {
+                    var_name:'',
+                    field_name:'',
+                    condition:'=',
+                    c_var_name:'',
+                    c_field_name:''
+                };
+                Vue.set(this.function_list[index].hint[h_i].where,Object.keys(this.function_list[index].hint[h_i].where).length,where);
+            },
+            del_f_error_msg_where(index,h_i,i){
+                Vue.delete(this.function_list[index].hint[h_i].where,i)
+            },
+
+
+            //添加组件 -  校验 - validate
+            add_validate(){
+                const data = {
+                        type:'validate',
+                        input_name:'',
+                        validate:'',
+                        return_name:'validate_re'
+                    };
+                Vue.set(this.function_list,Object.keys(this.function_list).length,data);
+            },
+
+            //添加组件 - 结果转换 - res_change
+            add_res_change(){
+                const data = {
+                    type:'res_change',
+                    input_name:'',
+                    data:[
+                        {
+
+                        }
+                    ],
+                    return_name:'change_data'
+                };
+                Vue.set(this.function_list,Object.keys(this.function_list).length,data);
+            },
+
+
+
+            click_submit(){
+                $('#btn_submit').click();
+            },
+            submit_f_data(event){
+                const that = this;
+                event.preventDefault();
+                let data = {
+                    id:this.function_id,
+                    function_title:this.function_title,
+                    function_desc:this.function_desc,
+                    person_name:this.person_name,
+                    function_name:this.function_name,
+                    method_type:this.method_type_f,
+                    function_data:JSON.stringify(that.function_list),
+                };
+
+                $.ajax({
+                    url:"{:url('/generate/Api/edit_function_data')}",
+                    type:"POST",
+                    data:data,
+                    async:true,
+                    success:function (res) {
+                        if (res.status){
+                            console.log('修改成功');
+                            window.location.href="{:url('/generate/Index/controller_list')}";
+                        }
+                    },
+                });
+            }
+
+
+        }
+    })
+
+
+</script>
+{/block}

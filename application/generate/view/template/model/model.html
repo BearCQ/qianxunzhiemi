@@ -1,0 +1,42 @@
+
+//自动生成,请根据需要修改
+namespace {$app_namespace}\{$module_name}\model;
+
+use think\Model;
+
+class {:parse_name($table_name,true)} extends Model {
+
+{foreach $function_list as $f_list_k=>$f_list_v }
+
+{foreach $f_list_v.function_data as $f_data_k=>$f_data_v }
+
+{if $f_data_v.type=='select'}
+	//{$f_list_v.function_title}查询
+	public function {$f_list_v.function_name}_delete($data){
+		return $this->allowField(true)->save($data,['id'=>$data['id']]);
+	}
+{/if}
+
+{if $f_data_v.type=='insert'}
+	//{$f_list_v.function_title}新增
+	public function add($data){
+		return $this->data($data)->allowField(true)->save();
+	}
+{/if}
+{if $f_data_v.type=='update'}
+	//{$f_list_v.function_title}修改
+	public function edit($data){
+		return $this->allowField(true)->save($data,['id'=>$data['id']]);
+	}
+{/if}
+{if $f_data_v.type=='delete'}
+	//{$f_list_v.function_title}删除
+	public function edit($data){
+		return $this->allowField(true)->save($data,['id'=>$data['id']]);
+	}
+{/if}
+
+{/foreach}
+{/foreach}
+
+}	
